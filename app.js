@@ -14,15 +14,34 @@
     return `${yyyy}-${mm}-${dd}`;
   }
 
-  function showToast(message) {
+  function vibrateFor(type) {
+    try {
+      if (!('vibrate' in navigator)) return;
+      if (type === 'success') navigator.vibrate(30);
+      else if (type === 'error') navigator.vibrate([60, 30, 60]);
+      else navigator.vibrate(20);
+    } catch (_) {}
+  }
+
+  function showToast(message, type = 'info') {
     console.log(message);
-    // For simplicity, log to scan-log when available
+    // log area
     const log = byId('scan-log');
     if (log) {
       const p = document.createElement('div');
       p.textContent = message;
       log.prepend(p);
     }
+    // overlay toast
+    const container = byId('toasts');
+    if (container) {
+      const t = document.createElement('div');
+      t.className = `toast ${type}`;
+      t.textContent = message;
+      container.appendChild(t);
+      setTimeout(() => { try { container.removeChild(t); } catch (_) {} }, 1800);
+    }
+    vibrateFor(type);
   }
 
   // Scan status UI
@@ -288,15 +307,15 @@
   async function handleScanSuccess(decodedText) {
     try {
       const data = JSON.parse(decodedText);
-      if (!data || data.jenis !== 'absensi-siswa') { showToast('QR tidak valid'); setScanStatus('QR tidak valid', 'error'); return revertToScanningSoon(); }
+      if (!data || data.jenis !== 'absensi-siswa') { showToast('QR tidak valid', 'error'); setScanStatus('QR tidak valid', 'error'); return revertToScanningSoon(); }
       const { kelas, mapel, tanggal } = getSelectedScanContext();
-      if (!kelas) { showToast('Pilih kelas terlebih dahulu'); setScanStatus('Pilih kelas terlebih dahulu', 'error'); return revertToScanningSoon(); }
-      if (!byId('input-mapel').value) { showToast('Isi mata pelajaran'); setScanStatus('Isi mata pelajaran', 'error'); return revertToScanningSoon(); }
-      if (data.kelas !== kelas) { showToast(`QR milik kelas ${data.kelas}, bukan ${kelas}`); setScanStatus(`QR kelas salah: ${data.kelas}`, 'error'); return revertToScanningSoon(); }
+      if (!kelas) { showToast('Pilih kelas terlebih dahulu', 'error'); setScanStatus('Pilih kelas terlebih dahulu', 'error'); return revertToScanningSoon(); }
+      if (!byId('input-mapel').value) { showToast('Isi mata pelajaran', 'error'); setScanStatus('Isi mata pelajaran', 'error'); return revertToScanningSoon(); }
+      if (data.kelas !== kelas) { showToast(`QR milik kelas ${data.kelas}, bukan ${kelas}`, 'error'); setScanStatus(`QR kelas salah: ${data.kelas}`, 'error'); return revertToScanningSoon(); }
 
       const uniqueId = data.uid || `${data.kelas}|${data.nomor}`;
       if (isDuplicateRecentScan(uniqueId)) {
-        showToast(`Duplikat scan untuk ${data.nama} (${data.nomor})`);
+        showToast(`Duplikat scan untuk ${data.nama} (${data.nomor})`, 'info');
         setScanStatus(`Duplikat: ${data.nama} (${data.nomor})`, 'info');
         return revertToScanningSoon(1000);
       }
@@ -304,17 +323,17 @@
       const ref = db.ref(`absensi/${kelas}/${tanggal}/${mapel}/${data.nomor}`);
       const existing = (await ref.get()).val();
       if (existing && existing.status === 'Hadir') {
-        showToast(`Sudah tercatat: ${data.nama} (${data.nomor})`);
+        showToast(`Sudah tercatat: ${data.nama} (${data.nomor})`, 'info');
         setScanStatus(`Sudah tercatat: ${data.nama} (${data.nomor})`, 'info');
         return revertToScanningSoon(1000);
       }
       const timestamp = new Date().toISOString();
       await ref.set({ nama: data.nama, timestamp, status: 'Hadir' });
-      showToast(`Hadir: ${data.nama} (${data.nomor}) • ${mapel}`);
+      showToast(`Hadir: ${data.nama} (${data.nomor}) • ${mapel}`, 'success');
       setScanStatus(`Hadir: ${data.nama} (${data.nomor})`, 'success');
       revertToScanningSoon(1200);
     } catch (e) {
-      showToast('Gagal membaca QR');
+      showToast('Gagal membaca QR', 'error');
       console.error(e);
       setScanStatus('Gagal membaca QR', 'error');
       revertToScanningSoon();
@@ -339,6 +358,7 @@
     } catch (e) {
       alert('Tidak dapat mengakses kamera: ' + e.message);
       setScanStatus('Tidak dapat mengakses kamera', 'error');
+      showToast('Tidak dapat mengakses kamera', 'error');
     }
   }
 
@@ -350,6 +370,7 @@
     byId('btn-start-scan').disabled = false;
     byId('btn-stop-scan').disabled = true;
     setScanStatus('Berhenti', 'idle');
+    showToast('Berhenti memindai', 'info');
   }
 
   // ---------- Rekap & Export ----------

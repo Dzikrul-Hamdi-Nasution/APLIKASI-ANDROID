@@ -171,3 +171,33 @@ th { color: var(--muted); font-weight: 600; }
   .tabs { grid-template-columns: 1fr 1fr; }
 }
 
+/* Toasts */
+.toasts {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  display: grid;
+  gap: 8px;
+  z-index: 9999;
+  width: min(92vw, 480px);
+}
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: #0a1220;
+  color: var(--text);
+  font-size: 14px;
+  box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+  animation: toast-in 150ms ease-out;
+}
+.toast.success { border-color: var(--success); background: rgba(23,201,100,0.1); }
+.toast.error { border-color: var(--danger); background: rgba(239,71,111,0.12); }
+.toast.info { border-color: var(--primary); background: rgba(79,140,255,0.12); }
+
+@keyframes toast-in { from { opacity: 0; transform: translate(-50%, 10px); } to { opacity: 1; transform: translate(-50%, 0); } }
+
