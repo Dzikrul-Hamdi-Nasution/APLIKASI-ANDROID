@@ -113,6 +113,37 @@ input, select {
 .qr-reader { margin-top: 10px; }
 .scan-log { margin-top: 10px; font-size: 13px; color: var(--muted); }
 
+.scan-status {
+  display: grid;
+  grid-template-columns: 20px 1fr;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #0a1220;
+  color: var(--muted);
+  font-size: 13px;
+}
+.scan-status .dot-spinner {
+  width: 16px; height: 16px; border-radius: 50%;
+  border: 2px solid var(--border);
+  border-top-color: var(--primary);
+  animation: spin 0.9s linear infinite;
+}
+.scan-status.idle .dot-spinner { display: none; }
+.scan-status.scanning { color: var(--text); border-color: var(--primary); }
+.scan-status.scanning .dot-spinner { display: inline-block; }
+.scan-status.success { color: var(--text); border-color: var(--success); background: rgba(23,201,100,0.08); }
+.scan-status.success .dot-spinner { display: none; }
+.scan-status.error { color: var(--text); border-color: var(--danger); background: rgba(239,71,111,0.08); }
+.scan-status.error .dot-spinner { display: none; }
+.scan-status.info { color: var(--text); border-color: var(--primary); background: rgba(79,140,255,0.08); }
+.scan-status.info .dot-spinner { display: none; }
+
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
 .table-container { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; }
 th, td { border-bottom: 1px solid var(--border); padding: 8px; text-align: left; font-size: 13px; }

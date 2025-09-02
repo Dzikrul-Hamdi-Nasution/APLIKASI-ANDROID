@@ -25,6 +25,25 @@
     }
   }
 
+  // Scan status UI
+  function setScanStatus(text, type) {
+    const el = byId('scan-status');
+    if (!el) return;
+    el.classList.remove('idle','scanning','success','error','info');
+    el.classList.add(type || 'idle');
+    const textEl = el.querySelector('.text');
+    if (textEl) textEl.textContent = text || '';
+  }
+  function isScanningActive() {
+    const startBtn = byId('btn-start-scan');
+    return !!startBtn && startBtn.disabled === true;
+  }
+  function revertToScanningSoon(delayMs = 1200) {
+    setTimeout(() => {
+      if (isScanningActive()) setScanStatus('Memindai...', 'scanning');
+    }, delayMs);
+  }
+
   // ---------- Tabs ----------
   function initTabs() {
     qsa('.tab-button').forEach(btn => {
@@ -269,30 +288,36 @@
   async function handleScanSuccess(decodedText) {
     try {
       const data = JSON.parse(decodedText);
-      if (!data || data.jenis !== 'absensi-siswa') { showToast('QR tidak valid'); return; }
+      if (!data || data.jenis !== 'absensi-siswa') { showToast('QR tidak valid'); setScanStatus('QR tidak valid', 'error'); return revertToScanningSoon(); }
       const { kelas, mapel, tanggal } = getSelectedScanContext();
-      if (!kelas) { showToast('Pilih kelas terlebih dahulu'); return; }
-      if (!byId('input-mapel').value) { showToast('Isi mata pelajaran'); return; }
-      if (data.kelas !== kelas) { showToast(`QR milik kelas ${data.kelas}, bukan ${kelas}`); return; }
+      if (!kelas) { showToast('Pilih kelas terlebih dahulu'); setScanStatus('Pilih kelas terlebih dahulu', 'error'); return revertToScanningSoon(); }
+      if (!byId('input-mapel').value) { showToast('Isi mata pelajaran'); setScanStatus('Isi mata pelajaran', 'error'); return revertToScanningSoon(); }
+      if (data.kelas !== kelas) { showToast(`QR milik kelas ${data.kelas}, bukan ${kelas}`); setScanStatus(`QR kelas salah: ${data.kelas}`, 'error'); return revertToScanningSoon(); }
 
       const uniqueId = data.uid || `${data.kelas}|${data.nomor}`;
       if (isDuplicateRecentScan(uniqueId)) {
         showToast(`Duplikat scan untuk ${data.nama} (${data.nomor})`);
-        return;
+        setScanStatus(`Duplikat: ${data.nama} (${data.nomor})`, 'info');
+        return revertToScanningSoon(1000);
       }
 
       const ref = db.ref(`absensi/${kelas}/${tanggal}/${mapel}/${data.nomor}`);
       const existing = (await ref.get()).val();
       if (existing && existing.status === 'Hadir') {
         showToast(`Sudah tercatat: ${data.nama} (${data.nomor})`);
-        return;
+        setScanStatus(`Sudah tercatat: ${data.nama} (${data.nomor})`, 'info');
+        return revertToScanningSoon(1000);
       }
       const timestamp = new Date().toISOString();
       await ref.set({ nama: data.nama, timestamp, status: 'Hadir' });
       showToast(`Hadir: ${data.nama} (${data.nomor}) • ${mapel}`);
+      setScanStatus(`Hadir: ${data.nama} (${data.nomor})`, 'success');
+      revertToScanningSoon(1200);
     } catch (e) {
       showToast('Gagal membaca QR');
       console.error(e);
+      setScanStatus('Gagal membaca QR', 'error');
+      revertToScanningSoon();
     }
   }
 
@@ -302,6 +327,7 @@
     if (!mapel) { alert('Isi mata pelajaran'); return; }
     if (!state.html5Qr) state.html5Qr = new Html5Qrcode('qr-reader');
     try {
+      setScanStatus('Memindai...', 'scanning');
       await state.html5Qr.start(
         { facingMode: 'environment' },
         { fps: 10, qrbox: { width: 250, height: 250 } },
@@ -312,6 +338,7 @@
       byId('btn-stop-scan').disabled = false;
     } catch (e) {
       alert('Tidak dapat mengakses kamera: ' + e.message);
+      setScanStatus('Tidak dapat mengakses kamera', 'error');
     }
   }
 
@@ -322,6 +349,7 @@
     }
     byId('btn-start-scan').disabled = false;
     byId('btn-stop-scan').disabled = true;
+    setScanStatus('Berhenti', 'idle');
   }
 
   // ---------- Rekap & Export ----------
