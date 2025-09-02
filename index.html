@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <title>Absensi Siswa - QR</title>
+    <link rel="stylesheet" href="./styles.css">
+
+    <!-- Firebase v9 compat -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+
+    <!-- html5-qrcode -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.10/html5-qrcode.min.js"></script>
+
+    <!-- qrcode.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+    <!-- SheetJS (XLSX) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <!-- Optional icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header class="app-header">
+        <div class="title">Absensi Siswa</div>
+        <div class="subtitle">QR Code • Firebase</div>
+    </header>
+
+    <nav class="tabs">
+        <button class="tab-button active" data-target="#tab-kelas">Kelas & Siswa</button>
+        <button class="tab-button" data-target="#tab-qr">Generate QR</button>
+        <button class="tab-button" data-target="#tab-scan">Scan Absensi</button>
+        <button class="tab-button" data-target="#tab-rekap">Rekap & Export</button>
+    </nav>
+
+    <main class="tab-content">
+        <!-- Kelas & Siswa -->
+        <section id="tab-kelas" class="tab-panel active">
+            <div class="card">
+                <h3>Buat / Kelola Kelas</h3>
+                <div class="row">
+                    <input id="input-kelas" type="text" placeholder="Nama kelas (mis. KelasA)" />
+                    <button id="btn-add-kelas" class="btn primary">Tambah Kelas</button>
+                </div>
+                <div class="row">
+                    <select id="select-kelas"></select>
+                    <button id="btn-delete-kelas" class="btn danger">Hapus Kelas</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Daftar Siswa</h3>
+                <div class="row">
+                    <input id="input-nomor" type="text" placeholder="Nomor siswa (mis. 01)" />
+                    <input id="input-nama" type="text" placeholder="Nama siswa" />
+                </div>
+                <div class="row">
+                    <button id="btn-add-siswa" class="btn primary">Tambah / Update Siswa</button>
+                </div>
+                <div id="list-siswa" class="list"></div>
+            </div>
+        </section>
+
+        <!-- Generate QR -->
+        <section id="tab-qr" class="tab-panel">
+            <div class="card">
+                <h3>Generate QRCode Siswa</h3>
+                <div class="row">
+                    <select id="select-kelas-qr"></select>
+                    <button id="btn-refresh-siswa-qr" class="btn">Muat Siswa</button>
+                </div>
+                <div id="list-siswa-qr" class="list"></div>
+            </div>
+            <div id="qr-modal" class="modal hidden">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <div id="qr-title"></div>
+                        <button id="btn-close-modal" class="btn ghost">Tutup</button>
+                    </div>
+                    <div id="qr-preview"></div>
+                    <div class="row">
+                        <button id="btn-download-qr" class="btn primary">Unduh QR</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Scan Absensi -->
+        <section id="tab-scan" class="tab-panel">
+            <div class="card">
+                <h3>Scan QRCode Kehadiran</h3>
+                <div class="row">
+                    <select id="select-kelas-scan"></select>
+                </div>
+                <div class="row">
+                    <input id="input-mapel" type="text" placeholder="Mata pelajaran (mis. Matematika)" />
+                    <input id="input-tanggal" type="date" />
+                </div>
+                <div class="row">
+                    <button id="btn-start-scan" class="btn primary">Mulai Scan</button>
+                    <button id="btn-stop-scan" class="btn" disabled>Stop</button>
+                </div>
+                <div id="qr-reader" class="qr-reader"></div>
+                <div id="scan-log" class="scan-log"></div>
+            </div>
+        </section>
+
+        <!-- Rekap & Export -->
+        <section id="tab-rekap" class="tab-panel">
+            <div class="card">
+                <h3>Rekap Kehadiran</h3>
+                <div class="row">
+                    <select id="select-kelas-rekap"></select>
+                </div>
+                <div class="row">
+                    <input id="input-tanggal-rekap" type="date" />
+                    <input id="input-mapel-rekap" type="text" placeholder="Mata pelajaran" />
+                    <button id="btn-load-rekap" class="btn">Tampilkan</button>
+                </div>
+                <div id="rekap-container" class="table-container"></div>
+                <div class="row">
+                    <button id="btn-export-xlsx" class="btn success">Export ke Excel</button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">Made for Teachers • No Login • Offline-first UI</footer>
+
+    <script>
+        // Ganti dengan konfigurasi Firebase Anda, atau definisikan window.FIREBASE_CONFIG sebelum app.js
+        window.FIREBASE_CONFIG = window.FIREBASE_CONFIG || {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_AUTH_DOMAIN",
+            databaseURL: "YOUR_DATABASE_URL",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_STORAGE_BUCKET",
+            messagingSenderId: "YOUR_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+    </script>
+    <script src="./app.js"></script>
+</body>
+</html>
+
